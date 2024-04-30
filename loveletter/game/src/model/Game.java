@@ -7,8 +7,10 @@ import java.util.Random;
 
 import game.src.model.cards.*;
 import game.src.model.players.Humain;
+import game.src.model.players.LearningRobot;
 import game.src.model.players.Player;
 import game.src.model.players.Robot1;
+import game.src.utils.DatabaseQueries;
 
 /**
  * 
@@ -23,10 +25,14 @@ public class Game {
 	private Card hiddenCard;
 	private int nbPlayers;
 	private int turnPlayerNum = 0;
+	private int turn = 0;
 	private Player turnPlayer;
 	private Player winner = null;
 	private Player winnerGame = null;
 	public int nbCards = 21;
+
+	private int game_id;
+	private int nbRounds;
 	
 	public static int nbTypeCards = 7;
 	
@@ -81,6 +87,7 @@ public class Game {
 			this.turnPlayerNum = this.winner.getIdPlayer();
 			this.turnPlayer = this.winner;
 		}
+		this.turn = 0;
 
 		
 	}
@@ -90,13 +97,21 @@ public class Game {
 	 * @throws Exception
 	 */
 	public void launch() throws Exception {
+		game_id = DatabaseQueries.addGame(nbPlayers);
 		//create players
 		this.createPlayers();
+		for (Player p : this.players) {
+			DatabaseQueries.addPlayer(game_id, p);
+		}
+		//Game
+		nbRounds = 0;
 		while (!this.isGameOver()) {
+			DatabaseQueries.addRound(game_id, nbRounds);
 			this.printGameStatus();
 			//init
 			this.init();
-			
+			//Round
+
 			while(!this.isOver() && this.drawPile.getNbCards() > 0) {
 				this.turn();
 				
@@ -105,10 +120,13 @@ public class Game {
 				System.out.println();
 			}
 			this.end();
+			DatabaseQueries.modifyRound(game_id, this.winner, nbRounds, this.turn);
+			nbRounds++;
 			System.out.println();
 			System.out.println();
 		}
 		this.endGame();
+		DatabaseQueries.modifyGame(game_id, this.winnerGame, nbRounds);
 	}
 	
 	/**
@@ -212,6 +230,7 @@ public class Game {
 			if (this.turnPlayer.getNbCards() != 1) { 
 				throw new Exception(this.turnPlayer + " hasn't 1 card in the turn's end ");
 			}
+			DatabaseQueries.addTurn(this.game_id, this.nbRounds, this.turn, this.turnPlayer, playerAttacked, choosenCard);
 		}
 	}
 	
@@ -236,6 +255,7 @@ public class Game {
 	 *  <br>- The next turn's player
 	 */
 	private void nextTurn() {
+		this.turn++;
 		this.turnPlayerNum++;
 		this.turnPlayerNum %= this.nbPlayers;
 		this.turnPlayer = this.getTurnPlayer();
@@ -287,7 +307,7 @@ public class Game {
 			this.players.add(new Robot(this));
 		}*/
 		this.players.add(new Robot1(this));
-		this.players.add(new Robot1(this));
+		this.players.add(new LearningRobot(this));
 		//this.players.add(new Humain(this));
 	}
 	
